@@ -9,7 +9,7 @@ Follow these steps to use the scraper:
 - Download Chromedrive from [here](https://chromedriver.storage.googleapis.com/index.html?path=2.45/).
 - Install Python packages from requirements file, either using pip, conda or virtualenv:
 
-`conda create --name scraping-env python=3.6 --file requirements.txt`
+        `conda create --name scraping-env python=3.6 --file requirements.txt`
 
 **Note**: Python >= 3.6 is required. 
 
