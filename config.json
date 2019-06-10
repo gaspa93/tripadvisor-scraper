@@ -1,0 +1,5 @@
+{
+    "review-file": "ta_reviews.csv",
+    "place-file": "ta_places.csv",
+    "folder": "data/"
+}
