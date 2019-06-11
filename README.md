@@ -1,4 +1,4 @@
-﻿# TripAdvisor Reviews Scraper
+# TripAdvisor Reviews Scraper
 
 Scraper of Tripadvisor reviews, parametric by date and language.
 The script allows to scrape:
