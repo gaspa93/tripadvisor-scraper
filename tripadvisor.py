@@ -47,7 +47,7 @@ class Tripadvisor:
         self.min_date = min_date
         self.lang = lang
 
-        self.driver = self.__get_driver(debug=True)
+        self.driver = self.__get_driver()
         self.logger = self.__get_logger()
 
     def __enter__(self):
