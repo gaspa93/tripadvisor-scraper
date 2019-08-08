@@ -125,11 +125,11 @@ class Tripadvisor:
             self.logger.info('Scraping reviews with language code: %s', self.lang)
             try:
                 self.driver.find_element_by_xpath(
-                    '//div[@class=\'ui_radio item\' and @data-value=\'{}\']'.format(self.lang)).click()
+                    '//div[@class=\'item\' and @data-value=\'{}\']'.format(self.lang)).click()
             except:
                 self.logger.warn('Language %s not visible. Change to default: ALL', self.lang)
                 self.driver.find_element_by_xpath(
-                    '//div[@class=\'ui_radio item\' and @data-value=\'ALL\']').click()
+                    '//div[@class=\'item\' and @data-value=\'ALL\']').click()
 
             # wait to load new reviews and expand
             time.sleep(5)
