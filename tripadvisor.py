@@ -31,7 +31,7 @@ class ScrapeType(Enum):
 
 class Tripadvisor:
 
-    def __init__(self, min_date, lang, scrape_target=ScrapeType.REVIEW):
+    def __init__(self, n_max_reviews, lang, scrape_target=ScrapeType.REVIEW):
         config = json.load(open('config.json'))
         folder = config['folder']
 
@@ -44,7 +44,7 @@ class Tripadvisor:
             self.targetfile = open(folder + config['place-file'], mode='w', encoding='utf-8', newline='\n')
             self.writer = self.__get_writer(PLACE_HEADER)
 
-        self.min_date = min_date
+        self.N = n_max_reviews
         self.lang = lang
 
         self.driver = self.__get_driver(debug=True)
@@ -131,21 +131,21 @@ class Tripadvisor:
             #    self.driver.find_element_by_xpath(
             #        '//div[@class=\'item\' and @data-value=\'ALL\']').click()
 
-            #if self.lang == 'ALL':
-            #    self.driver.find_element_by_css_selector('li.ui_radio.location-review-review-list-parts-ReviewFilter__filter_row--p0z3u').click()
+            if self.lang == 'ALL':
+                self.driver.find_element_by_css_selector('li.ui_radio.location-review-review-list-parts-ReviewFilter__filter_row--p0z3u').click()
 
             # wait to load new reviews and expand
             time.sleep(5)
             self.__expand_reviews()
 
             resp = BeautifulSoup(self.driver.page_source, 'html.parser')
-            stop, count = self.__parse_reviews(resp)
+            stop, count = self.__parse_reviews(resp, 0)
 
             # load other pages with reviews, using a template url
             url = url.replace('Reviews-', 'Reviews-or{}-')
             offset = 0
             n_reviews = count
-            while not stop:
+            while offset <= 10:
                 offset = offset + 10
                 url_ = url.format(offset)
 
@@ -153,7 +153,7 @@ class Tripadvisor:
                 self.__expand_reviews()
 
                 resp = BeautifulSoup(self.driver.page_source, 'html.parser')
-                stop, count = self.__parse_reviews(resp)
+                stop, count = self.__parse_reviews(resp, n_reviews)
                 n_reviews += count
         else:
             self.logger.warn('No reviews available. Stop scraping this link.')
@@ -173,25 +173,22 @@ class Tripadvisor:
 
         self.writer.writerow(list(place_data.values()))
 
-    def __parse_reviews(self, response):
+    def __parse_reviews(self, response, count):
 
         found_last_new = False
 
-        r_list = response.find_elements_by_xpath('//div[@class=\'location-review-card-Card__ui_card--2Mri0 location-review-card-Card__card--o3LVm location-review-card-Card__section--NiAcw\']')
-        print(len(r_list))
+        r_list = response.find_all('div', class_='location-review-card-Card__ui_card--2Mri0 location-review-card-Card__card--o3LVm location-review-card-Card__section--NiAcw')
         n_new_reviews = 0
         for idx, review in enumerate(r_list):
-            id_review = review['data-reviewid']
+            review_inner = review.find('div', class_='location-review-review-list-parts-SingleReview__mainCol--1hApa')
+            id_review = review_inner['data-reviewid']
             # review_date = review.find('span', class_='ratingDate')['title']
-            user_and_review = review.find('div', class_='social-member-event-MemberEventOnObjectBlock__event_type--3njyv')
-            month = user_and_review.split(' ')[6]
-            year = user_and_review.split(' ')[7]
-            review_date = month + ' 01, ' + year
-            timestamp = datetime.strptime(review_date, '%B %d, %Y')
-            print(review_date, timestamp)
+            user_and_date = review.find('div', class_='social-member-event-MemberEventOnObjectBlock__event_type--3njyv').text
+            date = user_and_date.split(' ')[4:]
+            print(date)
 
             # save new reviews
-            if timestamp >= self.min_date:
+            if count <= self.N:
 
                 '''
                 if review.find('span', class_='badgetext') is not None:
@@ -214,26 +211,25 @@ class Tripadvisor:
                 if location is not None:
                     location = location.text
 
-                rating_raw = review.find('span', {"class": re.compile("ui_bubble_rating\sbubble_..")})['class'][1][-2:]
+                rating_raw = review_inner.find('span', {"class": re.compile("ui_bubble_rating\sbubble_..")})['class'][1][-2:]
                 rating_review = float(rating_raw[0] + '.' + rating_raw[1])
 
                 values = review.find_all('span', class_='social-member-MemberHeaderStats__bold--3z3qh')
-                n_reviews = int(values[0])
+                n_reviews = int(values[0].text.replace(',', ''))
 
                 if len(values) > 1:
-                    votes = int(values[1])
+                    votes = int(values[1].text.replace(',', ''))
                 else:
                     votes = 0
 
                 #title = self.__filter_string(review.find('span', class_='noQuotes').text)
-                title = self.__filter_string(review.find('a', class_='location-review-review-list-parts-ReviewTitle__reviewTitleText--2tFRT').text)
-                caption = self.__filter_string(review.find('q', class_='location-review-review-list-parts-ExpandableReview__reviewText--gOmRC').text)
+                title = self.__filter_string(review_inner.find('a', class_='location-review-review-list-parts-ReviewTitle__reviewTitleText--2tFRT').text)
+                caption = self.__filter_string(review_inner.find('q', class_='location-review-review-list-parts-ExpandableReview__reviewText--gOmRC').text)
 
                 item = {
                     'id_review': id_review,
                     'title': title,
                     'caption': caption,
-                    'timestamp': timestamp,
                     'rating': rating_review,
                     'username': username,
                     'n_review_user': n_reviews,
@@ -241,9 +237,9 @@ class Tripadvisor:
                     'n_votes_review': votes
                 }
 
-                print(item)
+                # print(item)
 
-                #self.writer.writerow(list(item.values()))
+                self.writer.writerow(list(item.values()))
                 n_new_reviews += 1
             else:
                 found_last_new = True
