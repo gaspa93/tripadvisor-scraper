@@ -226,6 +226,8 @@ class Tripadvisor:
                 title = self.__filter_string(review_inner.find('a', class_='location-review-review-list-parts-ReviewTitle__reviewTitleText--2tFRT').text)
                 caption = self.__filter_string(review_inner.find('q', class_='location-review-review-list-parts-ExpandableReview__reviewText--gOmRC').text)
 
+                # date of experience
+                date_exp = review_inner.find('span', class_='location-review-review-list-parts-EventDate__event_date--1epHa').text.split(':')[1]
                 item = {
                     'id_review': id_review,
                     'title': title,
@@ -234,7 +236,8 @@ class Tripadvisor:
                     'username': username,
                     'n_review_user': n_reviews,
                     'location': location,
-                    'n_votes_review': votes
+                    'n_votes_review': votes,
+                    'date_of_experience': date_exp
                 }
 
                 # print(item)
