@@ -171,10 +171,10 @@ class Tripadvisor:
         r_list = response.find_all('div', class_='location-review-card-Card__ui_card--2Mri0 location-review-card-Card__card--o3LVm location-review-card-Card__section--NiAcw')
         for idx, review in enumerate(r_list):
             review_inner = review.find('div', class_='location-review-review-list-parts-SingleReview__mainCol--1hApa')
+
             id_review = review_inner['data-reviewid']
-            # review_date = review.find('span', class_='ratingDate')['title']
             user_and_date = review.find('div', class_='social-member-event-MemberEventOnObjectBlock__event_type--3njyv').text
-            date = user_and_date.split(' ')[4:]
+            date = re.search('(.)*(wrote\sa\sreview)\s((.)*)', user_and_date).group(3)
 
             # save new reviews
             if count <= self.N:
@@ -205,6 +205,7 @@ class Tripadvisor:
                     'title': title,
                     'caption': caption,
                     'rating': rating_review,
+                    'date': date,
                     'username': username,
                     'n_review_user': n_reviews,
                     'location': location,
@@ -212,7 +213,7 @@ class Tripadvisor:
                     'date_of_experience': date_exp
                 }
 
-                # print(item)
+                print(item)
 
                 self.writer.writerow(list(item.values()))
                 count += 1
