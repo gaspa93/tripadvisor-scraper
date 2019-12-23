@@ -121,16 +121,7 @@ class Tripadvisor:
         n_total_reviews = int(n_total_reviews.split(' ')[0].replace(',', ''))
         n_reviews = 0
         if n_total_reviews > 0:
-            # NOTE: only visible languages can be selected
-            #self.logger.info('Scraping reviews with language code: %s', self.lang)
-            #try:
-            #    self.driver.find_element_by_xpath(
-            #        '//div[@class=\'item\' and @data-value=\'{}\']'.format(self.lang)).click()
-            #except:
-            #    self.logger.warn('Language %s not visible. Change to default: ALL', self.lang)
-            #    self.driver.find_element_by_xpath(
-            #        '//div[@class=\'item\' and @data-value=\'ALL\']').click()
-
+            # only all language click is implemented
             if self.lang == 'ALL':
                 self.driver.find_element_by_css_selector('li.ui_radio.location-review-review-list-parts-ReviewFilter__filter_row--p0z3u').click()
 
@@ -145,7 +136,7 @@ class Tripadvisor:
             url = url.replace('Reviews-', 'Reviews-or{}-')
             offset = 0
             n_reviews = count
-            while offset <= 10:
+            while not stop:
                 offset = offset + 10
                 url_ = url.format(offset)
 
@@ -178,34 +169,15 @@ class Tripadvisor:
         found_last_new = False
 
         r_list = response.find_all('div', class_='location-review-card-Card__ui_card--2Mri0 location-review-card-Card__card--o3LVm location-review-card-Card__section--NiAcw')
-        n_new_reviews = 0
         for idx, review in enumerate(r_list):
             review_inner = review.find('div', class_='location-review-review-list-parts-SingleReview__mainCol--1hApa')
             id_review = review_inner['data-reviewid']
             # review_date = review.find('span', class_='ratingDate')['title']
             user_and_date = review.find('div', class_='social-member-event-MemberEventOnObjectBlock__event_type--3njyv').text
             date = user_and_date.split(' ')[4:]
-            print(date)
 
             # save new reviews
             if count <= self.N:
-
-                '''
-                if review.find('span', class_='badgetext') is not None:
-                    n_reviews = int(review.find('span', class_='badgetext').text)
-                else:
-                    n_reviews = None
-
-                # container of username and location, if present
-                info_text = review.find('div', class_='info_text')
-
-                if info_text.find('div', class_='userLoc') is not None:
-                    location = info_text.find('div', class_='userLoc').text
-                else:
-                    location = None
-
-                username = info_text.find('div', class_=None).text
-                '''
                 username = review.find('a', class_='ui_header_link social-member-event-MemberEventOnObjectBlock__member--35-jC').text
                 location = review.find('span', class_='default social-member-common-MemberHometown__hometown--3kM9S small')
                 if location is not None:
@@ -243,11 +215,11 @@ class Tripadvisor:
                 # print(item)
 
                 self.writer.writerow(list(item.values()))
-                n_new_reviews += 1
+                count += 1
             else:
                 found_last_new = True
 
-        return [found_last_new, n_new_reviews]
+        return [found_last_new, count]
 
     def __expand_reviews(self):
 
