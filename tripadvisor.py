@@ -7,7 +7,7 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 import time
 import re
@@ -47,7 +47,7 @@ class Tripadvisor:
         self.N = n_max_reviews
         self.lang = lang
 
-        self.driver = self.__get_driver(debug=True)
+        self.driver = self.__get_driver()
         self.logger = self.__get_logger()
 
     def __enter__(self):
@@ -174,7 +174,8 @@ class Tripadvisor:
 
             id_review = review_inner['data-reviewid']
             user_and_date = review.find('div', class_='social-member-event-MemberEventOnObjectBlock__event_type--3njyv').text
-            date = re.search('(.)*(wrote\sa\sreview)\s((.)*)', user_and_date).group(3)
+            date_raw = re.search('(.)*(wrote\sa\sreview)\s((.)*)', user_and_date).group(3)
+            date = self.__parse_date(date_raw)
 
             # save new reviews
             if count <= self.N:
@@ -213,7 +214,7 @@ class Tripadvisor:
                     'date_of_experience': date_exp
                 }
 
-                print(item)
+                # print(item)
 
                 self.writer.writerow(list(item.values()))
                 count += 1
@@ -238,6 +239,14 @@ class Tripadvisor:
             self.logger.info('Expansion of reviews failed: no reviews to expand.')
             self.logger.info(e)
             pass
+
+    def __parse_date(self, d):
+        if d.lower() == 'today':
+            return datetime.today()
+        elif d.lower() == 'yesterday':
+            return datetime.today() - timedelta(days=1)
+        else:
+            return datetime.strptime('%B %d, %Y', d + ', 2019')
 
     def __parse_location(self, response, source_url):
 
