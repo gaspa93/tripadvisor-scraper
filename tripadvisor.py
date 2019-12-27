@@ -14,6 +14,7 @@ import re
 import csv, json
 import logging
 import traceback
+import locale
 
 TA_WEBPAGE = 'https://www.tripadvisor.com'
 TA_SEARCH_ENDPOINT = '/Search?geo=1&searchNearby=&redirect=&uiOrigin=MASTHEAD&q={}&supportedSearchTypes=find_near_stand_alone_query&enableNearPage=true'
@@ -21,7 +22,7 @@ URL_FILENAME = 'urls.txt'
 MAX_WAIT = 10
 MAX_RETRY = 10
 
-HEADER = ['id_review', 'title', 'caption', 'timestamp', 'rating', 'username', 'n_review_user', 'location']
+HEADER = ['id_review', 'title', 'caption', 'rating', 'timestamp', 'username', 'n_review_user', 'location', 'n_votes_review', 'date_experience']
 PLACE_HEADER = ['id', 'name', 'reviews', 'rating', 'address', 'ranking_string', 'ranking_pos', 'tags', 'ranking_length', 'url']
 
 class ScrapeType(Enum):
@@ -118,7 +119,7 @@ class Tripadvisor:
 
         # check if reviews are present, otherwise skip
         n_total_reviews = self.driver.find_element_by_css_selector('span.reviewCount').text
-        n_total_reviews = int(n_total_reviews.split(' ')[0].replace(',', ''))
+        n_total_reviews = int(n_total_reviews.split(' ')[0].replace(',', '').replace('.', ''))
         n_reviews = 0
         if n_total_reviews > 0:
             # only all language click is implemented
@@ -174,7 +175,7 @@ class Tripadvisor:
 
             id_review = review_inner['data-reviewid']
             user_and_date = review.find('div', class_='social-member-event-MemberEventOnObjectBlock__event_type--3njyv').text
-            date_raw = re.search('(.)*(wrote\sa\sreview)\s((.)*)', user_and_date).group(3)
+            date_raw = re.search('(.)*(ha\sscritto\suna\srecensione\sa)\s((.)*)', user_and_date).group(3)
             date = self.__parse_date(date_raw)
 
             # save new reviews
@@ -188,10 +189,10 @@ class Tripadvisor:
                 rating_review = float(rating_raw[0] + '.' + rating_raw[1])
 
                 values = review.find_all('span', class_='social-member-MemberHeaderStats__bold--3z3qh')
-                n_reviews = int(values[0].text.replace(',', ''))
+                n_reviews = int(values[0].text.replace(',', '').replace('.', ''))
 
                 if len(values) > 1:
-                    votes = int(values[1].text.replace(',', ''))
+                    votes = int(values[1].text.replace(',', '').replace('.', ''))
                 else:
                     votes = 0
 
@@ -241,12 +242,15 @@ class Tripadvisor:
             pass
 
     def __parse_date(self, d):
-        if d.lower() == 'today':
+        if d.lower() == 'oggi':
             return datetime.today()
-        elif d.lower() == 'yesterday':
+        elif d.lower() == 'ieri':
             return datetime.today() - timedelta(days=1)
         else:
-            return datetime.strptime('%B %d, %Y', d + ', 2019')
+            locale.setlocale(locale.LC_ALL, 'it_it')
+            day, month = d.split(' ')
+            month = month[0].upper() + month[1:]
+            return datetime.strptime(day + ' ' + month + ', 2019', '%d %b, %Y')
 
     def __parse_location(self, response, source_url):
 
@@ -266,7 +270,7 @@ class Tripadvisor:
         # get number of reviews
         try:
             num_reviews = response.find('span', class_='reviewCount').text
-            num_reviews = int(num_reviews.split(' ')[0].replace(',', ''))
+            num_reviews = int(num_reviews.split(' ')[0].replace(',', '').replace('.', ''))
         except:
             num_reviews = 0
         place['reviews'] = num_reviews
