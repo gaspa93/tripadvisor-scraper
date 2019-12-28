@@ -243,9 +243,9 @@ class Tripadvisor:
 
     def __parse_date(self, d):
         if d.lower() == 'oggi':
-            return datetime.today()
+            return datetime.today().date()
         elif d.lower() == 'ieri':
-            return datetime.today() - timedelta(days=1)
+            return (datetime.today() - timedelta(days=1)).date()
         else:
             locale.setlocale(locale.LC_ALL, 'it_it')
             p1, p2 = d.split(' ')
