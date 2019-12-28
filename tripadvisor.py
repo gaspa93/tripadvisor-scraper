@@ -138,7 +138,7 @@ class Tripadvisor:
             offset = 0
             n_reviews = count
             while not stop:
-                offset = offset + 10
+                offset = offset + 5
                 url_ = url.format(offset)
 
                 self.driver.get(url_)
