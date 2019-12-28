@@ -248,9 +248,17 @@ class Tripadvisor:
             return datetime.today() - timedelta(days=1)
         else:
             locale.setlocale(locale.LC_ALL, 'it_it')
-            day, month = d.split(' ')
+            p1, p2 = d.split(' ')
+            if len(p1) > 2:
+                day = '01'
+                month = p1
+                year = p2
+            else:
+                day = p1
+                month = p2
+                year = str(datetime.now().year)
             month = month[0].upper() + month[1:]
-            return datetime.strptime(day + ' ' + month + ', 2019', '%d %b, %Y')
+            return datetime.strptime(day + ' ' + month + ', ' + year, '%d %b, %Y').date()
 
     def __parse_location(self, response, source_url):
 
