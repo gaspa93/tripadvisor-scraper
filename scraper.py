@@ -15,7 +15,7 @@ def valid_date(s):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Tripadvisor reviews scraper.')
     parser.add_argument('--lang', type=str, default='ALL', help='language code of the reviews to scrape')
-    parser.add_argument('--N', default=10, help='Max number of reviews to scrape')
+    parser.add_argument('--N', type=int, default=10, help='Max number of reviews to scrape')
     parser.add_argument('--i', type=str, default='urls.txt', help='target URLs file')
     parser.add_argument('--q', type=str, required=False, help='Scraping urls of places based on a string query')
     parser.add_argument('--place', type=bool, default=False, help='Scraping place metadata instead of reviews')

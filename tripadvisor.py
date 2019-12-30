@@ -48,7 +48,7 @@ class Tripadvisor:
         self.N = n_max_reviews
         self.lang = lang
 
-        self.driver = self.__get_driver()
+        self.driver = self.__get_driver(debug=True)
         self.logger = self.__get_logger()
 
     def __enter__(self):
@@ -134,14 +134,18 @@ class Tripadvisor:
             stop, count = self.__parse_reviews(resp, 0)
 
             # load other pages with reviews, using a template url
-            url = url.replace('Reviews-', 'Reviews-or{}-')
-            offset = 0
+            #url = url.replace('Reviews-', 'Reviews-or{}-')
+            #url = url[:-6] + '#REVIEWS'  # new URL format
+            #offset = 0
+            pag = 1
             n_reviews = count
             while not stop:
-                offset = offset + 5
-                url_ = url.format(offset)
+                #offset = offset + 5
+                #url_ = url.format(offset)
+                #self.driver.get(url_)
 
-                self.driver.get(url_)
+                pag += 1
+                self.driver.find_element_by_xpath('//a[@class=\'pageNum  \' and contains(text(), {})]'.format(pag)).click()
                 self.__expand_reviews()
 
                 resp = BeautifulSoup(self.driver.page_source, 'html.parser')
