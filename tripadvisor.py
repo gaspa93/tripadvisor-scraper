@@ -131,14 +131,13 @@ class Tripadvisor:
             self.__expand_reviews()
 
             resp = BeautifulSoup(self.driver.page_source, 'html.parser')
-            stop, count = self.__parse_reviews(resp, 0)
+            stop, n_reviews = self.__parse_reviews(resp, 0)
 
             # load other pages with reviews, using a template url
             #url = url.replace('Reviews-', 'Reviews-or{}-')
             #url = url[:-6] + '#REVIEWS'  # new URL format
             #offset = 0
             pag = 1
-            n_reviews = count
             while not stop:
                 #offset = offset + 5
                 #url_ = url.format(offset)
@@ -146,11 +145,12 @@ class Tripadvisor:
 
                 pag += 1
                 self.driver.find_element_by_xpath('//a[@class=\'pageNum  \' and contains(text(), {})]'.format(pag)).click()
+                time.sleep(3) # wait new reviews to load
+
                 self.__expand_reviews()
 
                 resp = BeautifulSoup(self.driver.page_source, 'html.parser')
-                stop, count = self.__parse_reviews(resp, n_reviews)
-                n_reviews += count
+                stop, n_reviews = self.__parse_reviews(resp, n_reviews)
         else:
             self.logger.warn('No reviews available. Stop scraping this link.')
 
