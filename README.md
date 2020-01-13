@@ -14,14 +14,14 @@ Follow these steps to use the scraper:
 
         `conda create --name scraping python=3.6 --file requirements.txt`
 
-**Note**: Python >= 3.6 is required. 
+**Note**: Python >= 3.6 is required.
 
 ## Usage
 The scraper has 5 parameters:
 - `--i`: input file, containing a list of Tripadvisor urls that point to first page of reviews.
-- `--lang`: language code to filter reviews. 
-**Note**: at the moment, only languages that are visible on Tripadvisor website can be selected (e.g.: the ones with highest number of reviews).
-- `--date`: minimum date of reviews that we want to store, in the format YYYY-MM-DD.
+- `--lang`: language code to filter reviews.
+**Note**: only "select all languages" click is implemented.
+- `--N`: number of reviews to scrape.
 - `--q`: string query to scrape url places.
 - `--place`: boolean value to scrape place metadata instead of reviews.
 

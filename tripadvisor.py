@@ -122,7 +122,6 @@ class Tripadvisor:
         n_total_reviews = int(n_total_reviews.split(' ')[0].replace(',', '').replace('.', ''))
         n_reviews = 0
         if n_total_reviews > 0:
-            # only all language click is implemented
             if self.lang == 'ALL':
                 self.driver.find_element_by_css_selector('li.ui_radio.location-review-review-list-parts-ReviewFilter__filter_row--p0z3u').click()
 
