@@ -133,16 +133,9 @@ class Tripadvisor:
             resp = BeautifulSoup(self.driver.page_source, 'html.parser')
             stop, n_reviews = self.__parse_reviews(resp, 0)
 
-            # load other pages with reviews, using a template url
-            #url = url.replace('Reviews-', 'Reviews-or{}-')
-            #url = url[:-6] + '#REVIEWS'  # new URL format
-            #offset = 0
             autotranslate = True
             pag = 1
             while not stop:
-                #offset = offset + 5
-                #url_ = url.format(offset)
-                #self.driver.get(url_)
 
                 pag += 1
                 self.driver.find_element_by_xpath('//a[@class=\'pageNum  \' and contains(text(), {})]'.format(pag)).click()
@@ -241,8 +234,6 @@ class Tripadvisor:
 
         # load the complete review text in the HTML
         try:
-            # wait until the element is clickable
-            # self.driver.find_element_by_xpath('//span[@class=\'taLnk ulBlueLinks\']').click()
             self.driver.find_element_by_xpath('//span[@class=\'location-review-review-list-parts-ExpandableReview__cta--2mR2g\']').click()
 
             # wait complete reviews to load
@@ -370,7 +361,6 @@ class Tripadvisor:
         writer.writerow(header)
 
         return writer
-
 
     # util function to clean special characters
     def __filter_string(self, str):
