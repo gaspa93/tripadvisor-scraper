@@ -85,13 +85,14 @@ class Tripadvisor:
         if page > 1:
 
             self.driver.find_element_by_xpath('//a[@class=\'pageNum  \' and contains(text(), {})]'.format(page)).click()
-            self.__expand_reviews()
 
             # some pages have automatic translation
             autotranslate_div = self.driver.find_element_by_css_selector('span.location-review-review-list-parts-MachineTranslationHeader__qtext--2lhyR')
             if autotranslate_div and autotranslate:
                 self.driver.find_element_by_xpath('//div[@class=\'ui_radio\' and ./input[@id=\'autoTranslateNo\']]').click()
 
+        self.__expand_reviews()
+        
         resp = BeautifulSoup(self.driver.page_source, 'html.parser')
         reviews = self.__parse_reviews(resp)
 
