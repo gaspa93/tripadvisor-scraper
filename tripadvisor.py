@@ -68,13 +68,14 @@ class Tripadvisor:
         response = BeautifulSoup(self.driver.page_source, 'html.parser')
 
         results_list = response.find_all('div', class_='result-title')
+        url_list = []
         for elem in results_list:
             features = elem['onclick'].split(',')
 
             url = TA_WEBPAGE + features[3].lstrip()[1:-1]
-            self.urlfile.write(url+'\n')
+            url_list.append(url)
 
-        self.logger.info('Saved %d urls', len(results_list))
+        return url_list
 
 
     def set_language(self, url, lang='ALL'):
@@ -85,7 +86,7 @@ class Tripadvisor:
         return 0
 
 
-    def get_reviews(self, url, page):
+    def get_reviews(self, page):
 
         if page > 1:
 
@@ -103,7 +104,7 @@ class Tripadvisor:
         return reviews
 
 
-    def get_places(self, url):
+    def get_place(self, url):
         self.logger.info('Scraping place metadata for url: %s', url)
 
         resp = BeautifulSoup(requests.get(url).text, 'html.parser')
