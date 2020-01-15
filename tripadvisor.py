@@ -1,20 +1,18 @@
 # -*- coding: utf-8 -*-
-from selenium.webdriver.common.keys import Keys
+
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import NoSuchElementException
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
-from enum import Enum
 import time
 import re
-import csv, json
 import logging
 import traceback
 import locale
+import requests
 
 TA_WEBPAGE = 'https://www.tripadvisor.com'
 TA_SEARCH_ENDPOINT = '/Search?geo=1&searchNearby=&redirect=&uiOrigin=MASTHEAD&q={}&supportedSearchTypes=find_near_stand_alone_query&enableNearPage=true'
@@ -25,47 +23,24 @@ MAX_RETRY = 10
 HEADER = ['id_review', 'title', 'caption', 'rating', 'timestamp', 'username', 'n_review_user', 'location', 'n_votes_review', 'date_experience']
 PLACE_HEADER = ['id', 'name', 'reviews', 'rating', 'address', 'ranking_string', 'ranking_pos', 'tags', 'ranking_length', 'url']
 
-class ScrapeType(Enum):
-    URL = 1
-    REVIEW = 2
-    PLACE = 3
 
 class Tripadvisor:
 
-    def __init__(self, n_max_reviews, lang, scrape_target=ScrapeType.REVIEW):
-        config = json.load(open('config.json'))
-        folder = config['folder']
-
-        if scrape_target == ScrapeType.URL:
-            self.urlfile = open(URL_FILENAME, 'w', encoding='utf-8', newline='\n')
-        elif scrape_target == ScrapeType.REVIEW:
-            self.targetfile = open(folder + config['review-file'], mode='w', encoding='utf-8', newline='\n')
-            self.writer = self.__get_writer(HEADER)
-        else:
-            self.targetfile = open(folder + config['place-file'], mode='w', encoding='utf-8', newline='\n')
-            self.writer = self.__get_writer(PLACE_HEADER)
-
-        self.N = n_max_reviews
-        self.lang = lang
-
-        self.driver = self.__get_driver(debug=True)
+    def __init__(self):
+        self.driver = self.__get_driver()
         self.logger = self.__get_logger()
+
 
     def __enter__(self):
         return self
+
 
     def __exit__(self, exc_type, exc_value, tb):
         if exc_type is not None:
             traceback.print_exception(exc_type, exc_value, tb)
 
-        self.logger.info('Closing chromedriver...')
         self.driver.close()
         self.driver.quit()
-
-        if hasattr(self, 'urlfile'):
-            self.urlfile.close()
-        else:
-            self.targetfile.close()
 
         return True
 
@@ -77,23 +52,6 @@ class Tripadvisor:
 
         self.driver.get(TA_WEBPAGE + TA_SEARCH_ENDPOINT.format(query))
 
-        '''
-        # close pop-up 1
-        popup_1 = 'div.ui_close_x'  # 'div.overlays-pieces-CloseX__close--3jowQ.overlays-pieces-CloseX__inverted--3ADoB'
-        try:
-            self.driver.find_element_by_css_selector(popup_1).click()
-        except NoSuchElementException:
-            self.logger.warn('No pop-up to remove')
-
-
-
-        # click on search bar and run query
-        self.driver.find_element_by_css_selector('div.brand-global-nav-action-search-Search__searchButton--b9-IK').click()
-        search_bar = self.driver.find_element_by_id('mainSearch')
-        search_bar.send_keys(query)
-        search_bar.send_keys(Keys.RETURN)
-        '''
-
         wait = WebDriverWait(self.driver, MAX_WAIT)
         xpath_filter = '//a[@class=\'search-filter ui_tab  \'  and @data-filter-id=\'{}\']'.format(section)
         wait.until(EC.element_to_be_clickable((By.XPATH, xpath_filter))).click()
@@ -104,77 +62,60 @@ class Tripadvisor:
         response = BeautifulSoup(self.driver.page_source, 'html.parser')
 
         results_list = response.find_all('div', class_='result-title')
+        url_list = []
         for elem in results_list:
             features = elem['onclick'].split(',')
 
             url = TA_WEBPAGE + features[3].lstrip()[1:-1]
-            self.urlfile.write(url+'\n')
+            url_list.append(url)
 
-        self.logger.info('Saved %d urls', len(results_list))
+        return url_list
 
-    def get_reviews(self, url):
 
-        self.logger.info('Scraping reviews for url: %s', url)
+    def set_language(self, url, lang='ALL'):
         self.driver.get(url)
+        self.driver.find_element_by_css_selector('li.ui_radio.location-review-review-list-parts-ReviewFilter__filter_row--p0z3u').click()
+        time.sleep(5)
 
-        # check if reviews are present, otherwise skip
-        n_total_reviews = self.driver.find_element_by_css_selector('span.reviewCount').text
-        n_total_reviews = int(n_total_reviews.split(' ')[0].replace(',', '').replace('.', ''))
-        n_reviews = 0
-        if n_total_reviews > 0:
-            if self.lang == 'ALL':
-                self.driver.find_element_by_css_selector('li.ui_radio.location-review-review-list-parts-ReviewFilter__filter_row--p0z3u').click()
-
-            # wait to load new reviews and expand
-            time.sleep(5)
-            self.__expand_reviews()
-
-            resp = BeautifulSoup(self.driver.page_source, 'html.parser')
-            stop, n_reviews = self.__parse_reviews(resp, 0)
-
-            autotranslate = True
-            pag = 1
-            while not stop:
-
-                pag += 1
-                self.driver.find_element_by_xpath('//a[@class=\'pageNum  \' and contains(text(), {})]'.format(pag)).click()
-                time.sleep(3) # wait new reviews to load
-
-                self.__expand_reviews()
-
-                # some pages have automatic translation
-                autotranslate_div = self.driver.find_element_by_css_selector('span.location-review-review-list-parts-MachineTranslationHeader__qtext--2lhyR')
-                if autotranslate_div and autotranslate:
-                    self.driver.find_element_by_xpath('//div[@class=\'ui_radio\' and ./input[@id=\'autoTranslateNo\']]').click()
-                    autotranslate = False
-                    time.sleep(1)
+        return 0
 
 
-                resp = BeautifulSoup(self.driver.page_source, 'html.parser')
-                stop, n_reviews = self.__parse_reviews(resp, n_reviews)
-        else:
-            self.logger.warn('No reviews available. Stop scraping this link.')
+    def get_reviews(self, page):
 
-        self.logger.info('Scraped %d reviews', n_reviews)
+        if page > 1:
+
+            self.driver.find_element_by_xpath('//a[@class=\'pageNum  \' and contains(text(), {})]'.format(page)).click()
+
+            # some pages have automatic translation
+            autotranslate_div = self.driver.find_element_by_css_selector('span.location-review-review-list-parts-MachineTranslationHeader__qtext--2lhyR')
+            if autotranslate_div and autotranslate:
+                self.driver.find_element_by_xpath('//div[@class=\'ui_radio\' and ./input[@id=\'autoTranslateNo\']]').click()
+
+        self.__expand_reviews()
+        
+        resp = BeautifulSoup(self.driver.page_source, 'html.parser')
+        reviews = self.__parse_reviews(resp)
+
+        return reviews
 
 
-    def get_places(self, url):
+    def get_place(self, url):
         self.logger.info('Scraping place metadata for url: %s', url)
 
-        self.driver.get(url)
-        resp = BeautifulSoup(self.driver.page_source, 'html.parser')
+        htmlpage = requests.get(url).text
+        resp = BeautifulSoup(htmlpage, 'html.parser')
 
         # scrape place data
         place_data = self.__parse_location(resp, url)
         place_data['url'] = url[:-1]
 
-        self.writer.writerow(list(place_data.values()))
+        return place_data
 
-    def __parse_reviews(self, response, count):
 
-        found_last_new = False
+    def __parse_reviews(self, response):
 
         r_list = response.find_all('div', class_='location-review-card-Card__ui_card--2Mri0 location-review-card-Card__card--o3LVm location-review-card-Card__section--NiAcw')
+        parsed_reviews = []
         for idx, review in enumerate(r_list):
             review_inner = review.find('div', class_='location-review-review-list-parts-SingleReview__mainCol--1hApa')
 
@@ -183,51 +124,46 @@ class Tripadvisor:
             date_raw = re.search('(.)*(ha\sscritto\suna\srecensione\sa)\s((.)*)', user_and_date).group(3)
             date = self.__parse_date(date_raw)
 
-            # save new reviews
-            if count <= self.N:
-                username = review.find('a', class_='ui_header_link social-member-event-MemberEventOnObjectBlock__member--35-jC').text
-                location = review.find('span', class_='default social-member-common-MemberHometown__hometown--3kM9S small')
-                if location is not None:
-                    location = location.text
 
-                rating_raw = review_inner.find('span', {"class": re.compile("ui_bubble_rating\sbubble_..")})['class'][1][-2:]
-                rating_review = float(rating_raw[0] + '.' + rating_raw[1])
+            username = review.find('a', class_='ui_header_link social-member-event-MemberEventOnObjectBlock__member--35-jC').text
+            location = review.find('span', class_='default social-member-common-MemberHometown__hometown--3kM9S small')
+            if location is not None:
+                location = location.text
 
-                values = review.find_all('span', class_='social-member-MemberHeaderStats__bold--3z3qh')
-                n_reviews = int(values[0].text.replace(',', '').replace('.', ''))
+            rating_raw = review_inner.find('span', {"class": re.compile("ui_bubble_rating\sbubble_..")})['class'][1][-2:]
+            rating_review = float(rating_raw[0] + '.' + rating_raw[1])
 
-                if len(values) > 1:
-                    votes = int(values[1].text.replace(',', '').replace('.', ''))
-                else:
-                    votes = 0
+            values = review.find_all('span', class_='social-member-MemberHeaderStats__bold--3z3qh')
+            n_reviews = int(values[0].text.replace(',', '').replace('.', ''))
 
-                #title = self.__filter_string(review.find('span', class_='noQuotes').text)
-                title = self.__filter_string(review_inner.find('a', class_='location-review-review-list-parts-ReviewTitle__reviewTitleText--2tFRT').text)
-                caption = self.__filter_string(review_inner.find('q', class_='location-review-review-list-parts-ExpandableReview__reviewText--gOmRC').text)
-
-                # date of experience
-                date_exp = review_inner.find('span', class_='location-review-review-list-parts-EventDate__event_date--1epHa').text.split(':')[1]
-                item = {
-                    'id_review': id_review,
-                    'title': title,
-                    'caption': caption,
-                    'rating': rating_review,
-                    'date': date,
-                    'username': username,
-                    'n_review_user': n_reviews,
-                    'location': location,
-                    'n_votes_review': votes,
-                    'date_of_experience': date_exp
-                }
-
-                # print(item)
-
-                self.writer.writerow(list(item.values()))
-                count += 1
+            if len(values) > 1:
+                votes = int(values[1].text.replace(',', '').replace('.', ''))
             else:
-                found_last_new = True
+                votes = 0
 
-        return [found_last_new, count]
+            #title = self.__filter_string(review.find('span', class_='noQuotes').text)
+            title = self.__filter_string(review_inner.find('a', class_='location-review-review-list-parts-ReviewTitle__reviewTitleText--2tFRT').text)
+            caption = self.__filter_string(review_inner.find('q', class_='location-review-review-list-parts-ExpandableReview__reviewText--gOmRC').text)
+
+            # date of experience
+            date_exp = review_inner.find('span', class_='location-review-review-list-parts-EventDate__event_date--1epHa').text.split(':')[1]
+            item = {
+                'id_review': id_review,
+                'title': title,
+                'caption': caption,
+                'rating': rating_review,
+                'date': date,
+                'username': username,
+                'n_review_user': n_reviews,
+                'location': location,
+                'n_votes_review': votes,
+                'date_of_experience': date_exp
+            }
+
+            parsed_reviews.append(item)
+
+        return parsed_reviews
+
 
     def __expand_reviews(self):
 
@@ -243,6 +179,7 @@ class Tripadvisor:
             self.logger.info('Expansion of reviews failed: no reviews to expand.')
             self.logger.info(e)
             pass
+
 
     def __parse_date(self, d):
         if d.lower() == 'oggi':
@@ -263,6 +200,7 @@ class Tripadvisor:
             month = month[0].upper() + month[1:]
             return datetime.strptime(day + ' ' + month + ', ' + year, '%d %b, %Y').date()
 
+
     def __parse_location(self, response, source_url):
 
         # prepare a dictionary to store results
@@ -276,7 +214,7 @@ class Tripadvisor:
 
         # get place name
         name = response.find('h1', attrs={'id': 'HEADING'}).text
-        place['name'] = name
+        place['ta_name'] = name
 
         # get number of reviews
         try:
@@ -284,16 +222,16 @@ class Tripadvisor:
             num_reviews = int(num_reviews.split(' ')[0].replace(',', '').replace('.', ''))
         except:
             num_reviews = 0
-        place['reviews'] = num_reviews
+        place['n_reviews'] = num_reviews
 
         # get rating using a regular expression to find the correct class
         raw_rating = response.find('span', {"class": re.compile("ui_bubble_rating\sbubble_..")})['class'][1][-2:]
         overall_rating = float(raw_rating[0] + '.' + raw_rating[1])
-        place['rating'] = overall_rating
+        place['overall_rating'] = overall_rating
 
         # get address
         try:
-            complete_address = response.find('div', class_='attractions-contact-card-ContactCard__contactRow--3Ih6v').text
+            complete_address = response.find('span', class_='detail').text
         except:
             complete_address = None
         place['address'] = complete_address
@@ -324,6 +262,7 @@ class Tripadvisor:
 
         return place
 
+
     def __get_logger(self):
         # create logger
         logger = logging.getLogger('tripadvisor-scraper')
@@ -344,6 +283,7 @@ class Tripadvisor:
 
         return logger
 
+
     def __get_driver(self, debug=False):
         options = Options()
         if not debug:
@@ -355,11 +295,6 @@ class Tripadvisor:
 
         return input_driver
 
-    def __get_writer(self, header):
-        writer = csv.writer(self.targetfile, quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(header)
-
-        return writer
 
     # util function to clean special characters
     def __filter_string(self, str):
