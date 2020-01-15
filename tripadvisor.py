@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
-from selenium.webdriver.common.keys import Keys
+
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import NoSuchElementException
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import time
 import re
-import csv, json
 import logging
 import traceback
 import locale
@@ -298,13 +296,6 @@ class Tripadvisor:
         input_driver = webdriver.Chrome(chrome_options=options)
 
         return input_driver
-
-
-    def __get_writer(self, header):
-        writer = csv.writer(self.targetfile, quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(header)
-
-        return writer
 
 
     # util function to clean special characters

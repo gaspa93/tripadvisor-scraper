@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 from tripadvisor import Tripadvisor
-from datetime import datetime, timedelta
 import argparse
-
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Tripadvisor scraper.')
@@ -18,6 +15,7 @@ if __name__ == '__main__':
     if args.q:
         with Tripadvisor() as scraper:
             urls = scraper.get_urls(args.q)
+            print(urls)
 
     # scrape place metadata
     elif args.place:
@@ -30,9 +28,9 @@ if __name__ == '__main__':
     # scrape place reviews
     else:
         with Tripadvisor() as scraper:
-
             with open(args.i, 'r') as urls_file:
                 for url in urls_file:
                     # default behavior (and only implemented for now): all languges
                     scraper.set_language(url)
                     reviews = scraper.get_reviews(1) # get first page of reviews
+                    print(reviews)
