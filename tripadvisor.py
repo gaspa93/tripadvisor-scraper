@@ -23,10 +23,6 @@ MAX_RETRY = 10
 HEADER = ['id_review', 'title', 'caption', 'rating', 'timestamp', 'username', 'n_review_user', 'location', 'n_votes_review', 'date_experience']
 PLACE_HEADER = ['id', 'name', 'reviews', 'rating', 'address', 'ranking_string', 'ranking_pos', 'tags', 'ranking_length', 'url']
 
-class ScrapeType(Enum):
-    URL = 1
-    REVIEW = 2
-    PLACE = 3
 
 class Tripadvisor:
 
@@ -105,7 +101,8 @@ class Tripadvisor:
     def get_place(self, url):
         self.logger.info('Scraping place metadata for url: %s', url)
 
-        resp = BeautifulSoup(requests.get(url).text, 'html.parser')
+        htmlpage = requests.get(url).text
+        resp = BeautifulSoup(htmlpage, 'html.parser')
 
         # scrape place data
         place_data = self.__parse_location(resp, url)
@@ -216,7 +213,7 @@ class Tripadvisor:
 
         # get place name
         name = response.find('h1', attrs={'id': 'HEADING'}).text
-        place['name'] = name
+        place['ta_name'] = name
 
         # get number of reviews
         try:
@@ -224,16 +221,16 @@ class Tripadvisor:
             num_reviews = int(num_reviews.split(' ')[0].replace(',', '').replace('.', ''))
         except:
             num_reviews = 0
-        place['reviews'] = num_reviews
+        place['n_reviews'] = num_reviews
 
         # get rating using a regular expression to find the correct class
         raw_rating = response.find('span', {"class": re.compile("ui_bubble_rating\sbubble_..")})['class'][1][-2:]
         overall_rating = float(raw_rating[0] + '.' + raw_rating[1])
-        place['rating'] = overall_rating
+        place['overall_rating'] = overall_rating
 
         # get address
         try:
-            complete_address = response.find('div', class_='attractions-contact-card-ContactCard__contactRow--3Ih6v').text
+            complete_address = response.find('span', class_='detail').text
         except:
             complete_address = None
         place['address'] = complete_address

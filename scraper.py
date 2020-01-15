@@ -7,7 +7,8 @@ if __name__ == '__main__':
     parser.add_argument('--N', type=int, default=10, help='Max number of reviews to scrape')
     parser.add_argument('--i', type=str, default='urls.txt', help='target URLs file')
     parser.add_argument('--q', type=str, required=False, help='Scraping urls of places based on a string query')
-    parser.add_argument('--place', type=bool, default=False, help='Scraping place metadata instead of reviews')
+    parser.add_argument('--place', dest='place', action='store_true', help='Scraping place metadata instead of reviews')
+    parser.set_defaults(place=False)
 
     args = parser.parse_args()
 
