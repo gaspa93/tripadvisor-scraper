@@ -92,7 +92,7 @@ class Tripadvisor:
                 self.driver.find_element_by_xpath('//div[@class=\'ui_radio\' and ./input[@id=\'autoTranslateNo\']]').click()
 
         self.__expand_reviews()
-        
+
         resp = BeautifulSoup(self.driver.page_source, 'html.parser')
         reviews = self.__parse_reviews(resp)
 
@@ -106,7 +106,13 @@ class Tripadvisor:
         resp = BeautifulSoup(htmlpage, 'html.parser')
 
         # scrape place data
-        place_data = self.__parse_location(resp, url)
+        place_data = self.__parse_location(resp)
+
+        # get location id and area id parsing the url of the page
+        id_location = int(re.search('-d(\d+)-', source_url).group(1))
+        geo_id = int(re.search('-g(\d+)-', source_url).group(1))
+        place_data['ta_id'] = id_location
+        place_data['ta_geoid'] = geo_id
         place_data['url'] = url[:-1]
 
         return place_data
@@ -201,16 +207,10 @@ class Tripadvisor:
             return datetime.strptime(day + ' ' + month + ', ' + year, '%d %b, %Y').date()
 
 
-    def __parse_location(self, response, source_url):
+    def __parse_location(self, response):
 
         # prepare a dictionary to store results
         place = {}
-
-        # get location id and area id parsing the url of the page
-        id_location = int(re.search('-d(\d+)-', source_url).group(1))
-        geo_id = int(re.search('-g(\d+)-', source_url).group(1))
-        place['id'] = id_location
-        place['geoid'] = geo_id
 
         # get place name
         name = response.find('h1', attrs={'id': 'HEADING'}).text
