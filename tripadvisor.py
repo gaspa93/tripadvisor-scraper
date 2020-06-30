@@ -20,13 +20,10 @@ URL_FILENAME = 'urls.txt'
 MAX_WAIT = 10
 MAX_RETRY = 10
 
-HEADER = ['id_review', 'title', 'caption', 'rating', 'timestamp', 'username', 'n_review_user', 'location', 'n_votes_review', 'date_experience']
-PLACE_HEADER = ['id', 'name', 'reviews', 'rating', 'address', 'ranking_string', 'ranking_pos', 'tags', 'ranking_length', 'url']
-
-
 class Tripadvisor:
 
-    def __init__(self):
+    def __init__(self, debug=False):
+        self.debug = debug
         self.driver = self.__get_driver()
         self.logger = self.__get_logger()
 
@@ -74,7 +71,8 @@ class Tripadvisor:
 
     def set_language(self, url, lang='ALL'):
         self.driver.get(url)
-        self.driver.find_element_by_css_selector('li.ui_radio.location-review-review-list-parts-ReviewFilter__filter_row--p0z3u').click()
+        #self.driver.find_element_by_css_selector('li.ui_radio.location-review-review-list-parts-ReviewFilter__filter_row--p0z3u').click()
+        self.driver.find_element_by_xpath('//label[@for=\'LanguageFilter_0\']').click()
         time.sleep(5)
 
         return 0
@@ -120,26 +118,27 @@ class Tripadvisor:
 
     def __parse_reviews(self, response):
 
-        r_list = response.find_all('div', class_='location-review-card-Card__ui_card--2Mri0 location-review-card-Card__card--o3LVm location-review-card-Card__section--NiAcw')
+        #r_list = response.find_all('div', class_='location-review-card-Card__ui_card--2Mri0 location-review-card-Card__card--o3LVm location-review-card-Card__section--NiAcw')
+        r_list = response.find_all('div', class_='Dq9MAugU T870kzTX LnVzGwUB')
         parsed_reviews = []
         for idx, review in enumerate(r_list):
-            review_inner = review.find('div', class_='location-review-review-list-parts-SingleReview__mainCol--1hApa')
+            review_inner = review.find('div', class_='oETBfkHU')
 
             id_review = review_inner['data-reviewid']
-            user_and_date = review.find('div', class_='social-member-event-MemberEventOnObjectBlock__event_type--3njyv').text
-            date_raw = re.search('(.)*(ha\sscritto\suna\srecensione\sa)\s((.)*)', user_and_date).group(3)
-            date = self.__parse_date(date_raw)
+            user_and_date = review.find('div', class_='_2fxQ4TOx').text
+            date = re.search('(.)*(wrote\sa\sreview)\s((.)*)', user_and_date).group(3)
 
 
-            username = review.find('a', class_='ui_header_link social-member-event-MemberEventOnObjectBlock__member--35-jC').text
-            location = review.find('span', class_='default social-member-common-MemberHometown__hometown--3kM9S small')
+            username = review.find('a', class_='ui_header_link _1r_My98y').text
+            userlink = review.find('a', class_='ui_header_link _1r_My98y')['href']
+            location = review.find('span', class_='default _3J15flPT small')
             if location is not None:
                 location = location.text
 
             rating_raw = review_inner.find('span', {"class": re.compile("ui_bubble_rating\sbubble_..")})['class'][1][-2:]
             rating_review = float(rating_raw[0] + '.' + rating_raw[1])
 
-            values = review.find_all('span', class_='social-member-MemberHeaderStats__bold--3z3qh')
+            values = review.find_all('span', class_='_1fk70GUn')
             n_reviews = int(values[0].text.replace(',', '').replace('.', ''))
 
             if len(values) > 1:
@@ -148,11 +147,11 @@ class Tripadvisor:
                 votes = 0
 
             #title = self.__filter_string(review.find('span', class_='noQuotes').text)
-            title = self.__filter_string(review_inner.find('a', class_='location-review-review-list-parts-ReviewTitle__reviewTitleText--2tFRT').text)
-            caption = self.__filter_string(review_inner.find('q', class_='location-review-review-list-parts-ExpandableReview__reviewText--gOmRC').text)
+            title = self.__filter_string(review_inner.find('a', class_='ocfR3SKN').text)
+            caption = self.__filter_string(review_inner.find('q', class_='IRsGHoPm').text)
 
             # date of experience
-            date_exp = review_inner.find('span', class_='location-review-review-list-parts-EventDate__event_date--1epHa').text.split(':')[1]
+            date_exp = review_inner.find('span', class_='_34Xs-BQm').text.split(':')[1]
             item = {
                 'id_review': id_review,
                 'title': title,
@@ -160,6 +159,7 @@ class Tripadvisor:
                 'rating': rating_review,
                 'date': date,
                 'username': username,
+                'userlink': userlink,
                 'n_review_user': n_reviews,
                 'location': location,
                 'n_votes_review': votes,
@@ -175,7 +175,7 @@ class Tripadvisor:
 
         # load the complete review text in the HTML
         try:
-            self.driver.find_element_by_xpath('//span[@class=\'location-review-review-list-parts-ExpandableReview__cta--2mR2g\']').click()
+            self.driver.find_element_by_xpath('//span[@class=\'_3maEfNCR\']').click()
 
             # wait complete reviews to load
             time.sleep(5)
@@ -286,7 +286,7 @@ class Tripadvisor:
 
     def __get_driver(self, debug=False):
         options = Options()
-        if not debug:
+        if not self.debug:
             options.add_argument("--headless")
         options.add_argument("--window-size=1366,768")
         options.add_argument("--disable-notifications")
