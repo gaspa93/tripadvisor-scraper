@@ -118,7 +118,6 @@ class Tripadvisor:
 
     def __parse_reviews(self, response):
 
-        #r_list = response.find_all('div', class_='location-review-card-Card__ui_card--2Mri0 location-review-card-Card__card--o3LVm location-review-card-Card__section--NiAcw')
         r_list = response.find_all('div', class_='Dq9MAugU T870kzTX LnVzGwUB')
         parsed_reviews = []
         for idx, review in enumerate(r_list):
@@ -146,7 +145,6 @@ class Tripadvisor:
             else:
                 votes = 0
 
-            #title = self.__filter_string(review.find('span', class_='noQuotes').text)
             title = self.__filter_string(review_inner.find('a', class_='ocfR3SKN').text)
             caption = self.__filter_string(review_inner.find('q', class_='IRsGHoPm').text)
 
@@ -185,26 +183,6 @@ class Tripadvisor:
             self.logger.info('Expansion of reviews failed: no reviews to expand.')
             self.logger.info(e)
             pass
-
-
-    def __parse_date(self, d):
-        if d.lower() == 'oggi':
-            return datetime.today().date()
-        elif d.lower() == 'ieri':
-            return (datetime.today() - timedelta(days=1)).date()
-        else:
-            locale.setlocale(locale.LC_ALL, 'it_it')
-            p1, p2 = d.split(' ')
-            if len(p1) > 2:
-                day = '01'
-                month = p1
-                year = p2
-            else:
-                day = p1
-                month = p2
-                year = str(datetime.now().year)
-            month = month[0].upper() + month[1:]
-            return datetime.strptime(day + ' ' + month + ', ' + year, '%d %b, %Y').date()
 
 
     def __parse_location(self, response):
