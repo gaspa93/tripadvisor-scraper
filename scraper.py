@@ -2,12 +2,13 @@
 
 from tripadvisor import Tripadvisor
 import argparse
+import csv
 
-HEADER = ['id_review', 'title', 'caption', 'rating', 'timestamp', 'username', 'n_review_user', 'location', 'n_votes_review', 'date_experience']
+HEADER = ['id_review', 'title', 'caption', 'rating', 'timestamp', 'username', 'userlink', 'n_review_user', 'location', 'n_votes_review', 'date_of_experience']
 PLACE_HEADER = ['id', 'name', 'reviews', 'rating', 'address', 'ranking_string', 'ranking_pos', 'tags', 'ranking_length', 'url']
 
-def csv_writer(path='data/', outfile='ta_reviews.csv'):
-    targetfile = open(path + outfile, mode='w', encoding='utf-8', newline='\n')
+def csv_writer(path='data/', outfile='ta_reviews'):
+    targetfile = open(path + outfile + '.csv', mode='w', encoding='utf-8', newline='\n')
     writer = csv.writer(targetfile, quoting=csv.QUOTE_MINIMAL)
     writer.writerow(HEADER)
 
@@ -24,26 +25,36 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # scrape urls of places
-    if args.q:
-        with Tripadvisor(debug=args.debug) as scraper:
+    # store reviews in CSV file
+    writer = csv_writer()
+
+    with Tripadvisor(debug=args.debug) as scraper:
+        # scrape urls of places
+        if args.q:
             urls = scraper.get_urls(args.q)
             print(urls)
 
-    # scrape place metadata
-    elif args.place:
-        with Tripadvisor(debug=args.debug) as scraper:
+        # scrape place metadata
+        elif args.place:
             with open(args.i, 'r') as urls_file:
                 for url in urls_file:
                     poi = scraper.get_place(url)
                     print(poi)
 
-    # scrape place reviews
-    else:
-        with Tripadvisor(debug=args.debug) as scraper:
+        # scrape place reviews
+        else:
             with open(args.i, 'r') as urls_file:
                 for url in urls_file:
-                    # default behavior (and only implemented for now): all languges
+
                     scraper.set_language(url)
-                    reviews = scraper.get_reviews(1) # get first page of reviews
-                    print(reviews)
+
+                    n = 0
+                    pag = 1
+                    while n < args.N:
+                        reviews = scraper.get_reviews(pag)
+
+                        for r in reviews:
+                            writer.writerow(list(r.values()))
+
+                        n += len(reviews)
+                        pag += 1

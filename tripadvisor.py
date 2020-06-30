@@ -68,35 +68,6 @@ class Tripadvisor:
 
         return url_list
 
-
-    def set_language(self, url, lang='ALL'):
-        self.driver.get(url)
-        #self.driver.find_element_by_css_selector('li.ui_radio.location-review-review-list-parts-ReviewFilter__filter_row--p0z3u').click()
-        self.driver.find_element_by_xpath('//label[@for=\'LanguageFilter_0\']').click()
-        time.sleep(5)
-
-        return 0
-
-
-    def get_reviews(self, page):
-
-        if page > 1:
-
-            self.driver.find_element_by_xpath('//a[@class=\'pageNum  \' and contains(text(), {})]'.format(page)).click()
-
-            # some pages have automatic translation
-            autotranslate_div = self.driver.find_element_by_css_selector('span.location-review-review-list-parts-MachineTranslationHeader__qtext--2lhyR')
-            if autotranslate_div and autotranslate:
-                self.driver.find_element_by_xpath('//div[@class=\'ui_radio\' and ./input[@id=\'autoTranslateNo\']]').click()
-
-        self.__expand_reviews()
-
-        resp = BeautifulSoup(self.driver.page_source, 'html.parser')
-        reviews = self.__parse_reviews(resp)
-
-        return reviews
-
-
     def get_place(self, url):
         self.logger.info('Scraping place metadata for url: %s', url)
 
@@ -114,6 +85,33 @@ class Tripadvisor:
         place_data['url'] = url[:-1]
 
         return place_data
+
+    #TO DO: lang parameter
+    def set_language(self, url, lang='ALL'):
+        self.driver.get(url)
+        self.driver.find_element_by_xpath('//label[@for=\'LanguageFilter_0\']').click()
+        time.sleep(5)
+
+        return 0
+
+
+    def get_reviews(self, page):
+
+        if page > 1:
+            self.driver.find_element_by_xpath('//a[@class=\'pageNum cx_brand_refresh_phase2 \' and contains(text(), {})]'.format(page)).click()
+            time.sleep(2)
+
+            # some pages have automatic translation
+            #autotranslate_div = self.driver.find_element_by_css_selector('span.location-review-review-list-parts-MachineTranslationHeader__qtext--2lhyR')
+            #if autotranslate_div and autotranslate:
+            #    self.driver.find_element_by_xpath('//div[@class=\'ui_radio\' and ./input[@id=\'autoTranslateNo\']]').click()
+
+        self.__expand_reviews()
+
+        resp = BeautifulSoup(self.driver.page_source, 'html.parser')
+        reviews = self.__parse_reviews(resp)
+
+        return reviews
 
 
     def __parse_reviews(self, response):
@@ -268,7 +266,7 @@ class Tripadvisor:
             options.add_argument("--headless")
         options.add_argument("--window-size=1366,768")
         options.add_argument("--disable-notifications")
-        options.add_argument("--lang=en")
+        options.add_experimental_option('prefs', {'intl.accept_languages': 'en_GB'})
         input_driver = webdriver.Chrome(chrome_options=options)
 
         return input_driver
